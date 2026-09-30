@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a Windows desktop game built in Rust with a simple deterministic simulation loop and a lightweight rendering layer.
+This project is a Windows desktop game built in Rust with a deterministic simulation model and Macroquad for lightweight 2D rendering and input.
 
 The architecture is intentionally split into:
 
@@ -45,25 +45,31 @@ A rectangular grid of tiles. Each tile stores:
 - current liquid amount
 - whether the tile is blocked / solid
 - whether it is a pump cell
-- whether it has a pipe connection
-- connections to adjacent tiles
+	- outgoing directed pipe connections to adjacent tiles
 - owner color / side
 
 Blocked tiles are rendered black and never accept incoming liquid. They behave as non-conductive obstacles in the pipe network.
+
+Pipe-link ownership belongs to the board model. Each adjacent pair has at most one link, oriented from its source cell to its destination cell. The model answers directional connection queries and counts outgoing links; blocking is rejected for cells with either incoming or outgoing links. Rendering draws each directed link from the source center to the shared edge of its destination cell.
 
 ### 4. Simulation
 
 Each simulation tick updates:
 
-- pump output generation
-- pipe flow propagation
+- pump output generation into the current pump cell first
+- a stable post-pump snapshot
+- simultaneous flow propagation along outgoing directed pipes only
 - liquid movement to adjacent cells
 - resource/pressure rules
 - win/lose or end-of-round evaluation conditions if added later
 
+### 4a. Opponent AI
+
+The CPU receives a read-only board view and difficulty setting, then returns at most one pipe command per simulation cycle. It may only control links originating from blue-owned liquid cells. Difficulty scales bounded search effort; it must not change pump or flow rules. The app applies the command before the simulation tick.
+
 ### 5. Rendering
 
-Renders the board, selected tiles, pipes, pumps, and fluid colors as a windowed UI.
+Macroquad renders the board, selected tiles, pipes, pumps, and fluid colors as a windowed UI. Its input layer translates pointer actions into explicit board commands; it does not own game rules.
 
 Rendering should not directly contain game rules. It should display state produced by the simulation layer.
 
@@ -76,11 +82,11 @@ Rendering should not directly contain game rules. It should display state produc
 
 ## Planned implementation direction
 
-The first version will likely use:
+The first version uses:
 
 - a plain Rust data model for board state
 - a fixed update loop for simulation steps
 - simple event-driven interactions for tile clicks
-- a tile renderer that draws the current board state
+- a Macroquad tile renderer that draws the current board state
 
 This keeps the project easy to test before adding richer visuals or advanced AI.
